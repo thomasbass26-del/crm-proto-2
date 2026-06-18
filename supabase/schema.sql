@@ -202,13 +202,20 @@ create table if not exists public.listings (
   updated_at    timestamptz not null default now()
 );
 
-create index if not exists listings_area_idx on public.listings(area);
-create index if not exists listings_status_idx on public.listings(status);
+create index if not exists listings_community_idx on public.listings(community_id);
 create index if not exists listings_agent_idx on public.listings(listing_agent);
+create index if not exists listings_status_idx on public.listings(status);
 
-create table if not exists public.saved_listings (
-  agent_id   uuid not null references public.agents(id) on delete cascade,
-  listing_id uuid not null references public.listings(id) on delete cascade,
-  saved_at   timestamptz not null default now(),
-  primary key (agent_id, listing_id)
-);
+
+-- ============================================================
+-- 7. ROW LEVEL SECURITY (RLS)
+-- ============================================================
+alter table public.leads enable row level security;
+
+-- Demo-mode policy: any authenticated user can read/write any lead.
+-- Tighten before production: "agent can only see leads they own; admin can see all".
+drop policy if exists "leads_access" on public.leads;
+create policy "leads_access" on public.leads
+  for all
+  using  (auth.uid() is not null)
+  with check (auth.uid() is not null);
